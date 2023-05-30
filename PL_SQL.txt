@@ -1,0 +1,343 @@
+-- Ejercicio 1
+-- Se ha cambiado el estado 'ALTA' por 'ACTIVO'
+-- Para probar los paquetes:
+DECLARE
+    cnt NUMBER;
+BEGIN
+    PK_GESTION_CLIENTES.altaCliente('1234', 'EMPRESA', 'ACTIVO', null,
+    'MALAGA', '29631', 'ESPAÑA', 'Calle Aprobado', 'DataManager', null, null, null);
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '1234';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método altaCliente');
+    END IF;
+
+    PK_GESTION_CLIENTES.modificarCliente('Calle Por favor', 'ACTIVO', '1234', 'EMPRESA', 
+    'BENAMOCARRA', NULL, '29719' , 'ESPAÑA', 'DataManager', null, null);
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '1234';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método modificarCliente');
+    END IF;
+    
+    PK_GESTION_CLIENTES.bajaCliente('3456');
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '3456';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método bajaCliente');
+    END IF;
+    
+    PK_GESTION_CLIENTES.insertarPrsAutorizada('Calle no suspenso', 'ACTIVO', null,
+    '4321', 'Martos', 'Cristina', '13-06-2001', 'CONSULTA', '1234');
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '1234';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método insertarPrsAutorizada');
+    END IF;
+
+    PK_GESTION_CLIENTES.modificarPrsAutorizada('Calle CINKILLO', 'ACTIVO', NULL,
+    '4321', 'CARDENAS', 'JOSE', '20-08-2000', 'CONSULTA');
+    SELECT COUNT(*) INTO cnt FROM PRS_AUTORIZADA WHERE IDENTIFICACION = '4321';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método modificarPrsAutorizada');
+    END IF;
+
+    PK_GESTION_CLIENTES.eliminarPrsAutorizada('4321', '61');
+    SELECT COUNT(*) INTO cnt FROM PRS_AUTORIZADA WHERE IDENTIFICACION = '4321';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método eliminarPrsAutorizada');
+    END IF;
+    
+    
+    PK_GESTION_CLIENTES.altaCliente('3456', 'EMPRESA', 'ACTIVO', null,
+    'MALAGA', '29631', 'ESPAÑA', 'Calle Nuevo cliente', 'SoftManager', null, null, null);
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '3456';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método altaCliente');
+    END IF;
+    
+    INSERT INTO CUENTA VALUES('ES3241', '3241');
+    INSERT INTO CUENTA_REFERENCIA VALUES('ES3241', 'EUR', 'OPENBANK', 'MADRID', 'ESPAÑA', 2345, '18-04-2020', 'ACTIVO');
+    PK_GESTION_CUENTAS.crearCuenta('ES6752', '6752', 1.03, 'ES3241', 'SEGREGADA', 'ACTIVO', null, '81');
+    SELECT COUNT(*) INTO cnt FROM cuenta WHERE iban = 'ES6752';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método crearCuenta');
+    END IF;
+
+    -- UPDATE CUENTA_REFERENCIA SET SALDO = 0 WHERE IBAN = 'ES3241';
+    PK_GESTION_CUENTAS.borrarCuenta('ES6752');
+    SELECT COUNT(*) INTO cnt FROM cuenta WHERE iban = 'ES6752';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método borrarCuenta');
+    END IF;
+    
+    PK_GESTION_CLIENTES.altaCliente('2525', 'INDIVIDUAL', 'ACTIVO', null, 'GRANADA',
+    '29631', 'ESPAÑA', 'Calle Prueba individual', null, 'Prenom', 'Nom', '08-03-1996');
+    SELECT COUNT(*) INTO cnt FROM CLIENTE WHERE IDENTIFICACION = '2525';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método altaCliente');
+    END IF;
+    
+    INSERT INTO CUENTA VALUES('ES2323', '2323');
+    INSERT INTO CUENTA_REFERENCIA VALUES('ES2323', 'USD', 'CAIXA', 'MADRID', 'ESPAÑA', 5000, '19-04-2021', 'ACTIVO');
+    PK_GESTION_CUENTAS.crearCuenta('ES2424', '2424', 1.3, 'ES2323', 'POOLED', 'ACTIVO', null, '121', 370);
+    SELECT COUNT(*) INTO cnt FROM cuenta WHERE iban = 'ES2424';
+    IF cnt < 1 then
+        raise_application_error(-20000, 'Error en el método crearCuenta');
+    END IF;
+
+END;
+
+-- Ejer 2
+
+CREATE OR REPLACE VIEW V_SALDOS("IDENTIFICACION", "IBAN", "SALDO", "ABREVIATURA", "CAMBIOEURO") AS                  
+    ((SELECT cl.IDENTIFICACION, cu.IBAN, de.SALDO, d.ABREVIATURA, d.CAMBIOEURO
+    FROM CLIENTE cl JOIN CUENTA_FINTECH cf ON cl.ID_CLIENTE = cf.CLIENTE_ID_CLIENTE
+         JOIN CUENTA cu ON cu.IBAN = cf.IBAN
+         JOIN POOLED_ACCOUNT pa ON pa.IBAN = cf.IBAN
+         JOIN DEPOSITADA_EN de ON de.POOLED_ACCOUNT_IBAN = pa.IBAN
+         JOIN CUENTA_REFERENCIA cr ON de.CUENTA_REFERENCIA_IBAN = cr.IBAN
+         JOIN DIVISA d ON d.ABREVIATURA = cr.DIVISA_ABREVIATURA)
+    UNION ALL
+    (SELECT cl.IDENTIFICACION, cu.IBAN, cr.SALDO, d.ABREVIATURA, d.CAMBIOEURO
+    FROM CLIENTE cl JOIN CUENTA_FINTECH cf ON cl.ID_CLIENTE = cf.CLIENTE_ID_CLIENTE
+         JOIN CUENTA cu ON cu.IBAN = cf.IBAN
+         JOIN SEGREGADA s ON s.IBAN = cf.IBAN
+         JOIN CUENTA_REFERENCIA cr ON s.CUENTA_REFERENCIA_IBAN = cr.IBAN
+         JOIN DIVISA d ON d.ABREVIATURA = cr.DIVISA_ABREVIATURA));
+
+-- CLIENTE CON CUENTA FINTECH
+-- CUENTA CON CUENTA FINTECH
+-- CUENTA FINTECH CON POOLED
+-- POOLED Y DEPOSITADA EN
+-- DEPOSITADA EN Y CUENTA REFERENCIA
+-- CUENTA REFERENCIA CON DIVISA
+
+-- CLIENTE CON CUENTA FINTECH
+-- CUENTA CON CUENTA FINTECH
+-- CUENTA FINTECH CON SEGREGADA
+-- SEGREGADA Y CUENTA REFERENCIA
+-- CUENTA REFERENCIA CON DIVISA
+
+CREATE SEQUENCE SQ_CLIENTE START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE SQ_PERSONA START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE SEQ_TRANSACCION START WITH 1 INCREMENT BY 1;
+CREATE OR REPLACE TRIGGER TR_TRANSACCION
+    BEFORE INSERT ON TRANSACCION FOR EACH ROW
+    DECLARE 
+        nuevo VARCHAR2(30);
+    BEGIN 
+        SELECT SEQ_TRANSACCION.NEXTVAL INTO nuevo from DUAL;
+         :new.id_transaccion := nuevo;
+    END;
+    
+
+-- Ejer 3
+
+-- Identificacion -> Cliente
+-- Numero_Tarjeta -> Tajeta
+-- Gasto -> Cantidad -> Movimiento
+-- Abreviatura -> Divisa
+
+CREATE OR REPLACE VIEW V_TARJETA_MENSUAL ("IDENTIFICACION", "NUMERO_TARJETA", "GASTO", "ABREVIATURA")
+    AS (SELECT c.identificacion, t.numtarjeta, sum(m.cantidad), d.abreviatura
+        FROM CLIENTE c JOIN TARJETA t ON c.id_cliente = t.cliente_id_cliente JOIN
+        MOVIMIENTO m ON t.numtarjeta = m.tarjeta_numtarjeta JOIN
+        DIVISA d ON d.abreviatura = m.divisa_abreviatura
+        GROUP BY d.abreviatura, c.identificacion, t.numtarjeta);
+
+ALTER TABLE MOVIMIENTO ADD ESTADO VARCHAR(20);
+
+CREATE OR REPLACE VIEW V_PAGOS_PENDIENTES("IDENTIFICACION", "NUMERO_TARJETA", "PENDIENTES", "ABREVIATURA")
+    AS (SELECT c.identificacion, t.numtarjeta, count(m.estado), d.abreviatura
+    FROM CLIENTE c JOIN TARJETA t ON c.id_cliente = t.cliente_id_cliente JOIN
+    MOVIMIENTO m ON t.numtarjeta = m.tarjeta_numtarjeta JOIN
+    DIVISA d ON d.abreviatura = m.divisa_abreviatura
+    WHERE m.estado = 'PENDIENTE'
+    GROUP BY c.identificacion, t.numtarjeta, d.abreviatura);
+
+-- Para probar v_pagos_pendientes:
+INSERT INTO TARJETA VALUES ('98989898', '767', 'DATAMANAGER', '19-04-2024', '19-04-2020', 'DEBITO', '121', 'ES2424', '30', '30');
+INSERT INTO MOVIMIENTO VALUES('05-06-2022', 'PRUEBA2', 'CRISTINA BARON', 'INDIVIDUAL', 30, 'DEBITO', 300, 400, 500, '98989898', 'USD', '2', 'PENDIENTE');
+
+-- Apartado C
+-- Para hacer pruebas:
+INSERT INTO TARJETA VALUES ('44689876', '067', 'DATAMANAGER', '18-04-2024', '18-04-2020', 'DEBITO', '61', 'ES12563127', '30', '30');
+INSERT INTO CUENTA_FINTECH VALUES ('ES12563127', '61', 'ACTIVO', '18-04-2020', NULL, 'SEGREGADA');
+INSERT INTO SEGREGADA VALUES('ES12563127', 0.3, 'ES09876');
+INSERT INTO CUENTA_REFERENCIA VALUES('ES09876', 'EUR', 'SANTANDER', 'MADRID', 'ESPAÑA', 1450, '18-04-2020', 'ACTIVO');
+INSERT INTO CUENTA VALUES('ES12563127', '12563127');
+INSERT INTO CUENTA VALUES('ES09876', '09876');
+INSERT INTO MOVIMIENTO VALUES('04-06-2022', 'PRUEBA', 'LUCIA CARDENAS', 'INDIVIDUAL', 20, 'DEBITO', 300, 400, 500, '44689876', 'EUR', '1', 'PENDIENTE');
+
+CREATE OR REPLACE PROCEDURE P_COBRO IS
+    -- cursor para actualizar el saldo de las cuentas
+        CURSOR saldoCuentas IS (SELECT codMov, cantidad, tarjeta_numtarjeta, divisa_abreviatura 
+            FROM MOVIMIENTO WHERE ESTADO = 'PENDIENTE' and UPPER(MODOOPERACION) = 'DEBITO');
+            
+   p_codmov movimiento.codmov%type;
+   p_cantidad_movimiento movimiento.cantidad%type;
+   p_tarjeta_num movimiento.tarjeta_numtarjeta%type;
+   p_divisa_abrev movimiento.divisa_abreviatura%type;
+   p_iban_cuenta_fintech tarjeta.cuenta_iban%type;
+   p_iban_referencia cuenta_referencia.iban%type;
+   p_saldo cuenta_referencia.saldo%type;
+   cont_pooled NUMBER;
+   p_cont NUMBER;
+        BEGIN
+        OPEN saldoCuentas;
+    
+        SELECT COUNT(*) INTO p_cont FROM MOVIMIENTO WHERE UPPER(ESTADO) = 'PENDIENTE' and UPPER(MODOOPERACION) = 'DEBITO';
+        
+        LOOP
+            FETCH saldoCuentas
+            INTO p_codmov, p_cantidad_movimiento, p_tarjeta_num, p_divisa_abrev;   
+                        
+            SELECT cuenta_iban INTO p_iban_cuenta_fintech FROM TARJETA WHERE numtarjeta = p_tarjeta_num;
+            
+            SELECT COUNT(*) INTO cont_pooled
+            FROM POOLED_ACCOUNT
+            WHERE IBAN = upper(p_iban_cuenta_fintech);
+            
+            IF cont_pooled > 0 THEN
+                SELECT cr.iban INTO p_iban_referencia FROM DEPOSITADA_EN de, CUENTA_REFERENCIA cr
+                WHERE cr.iban = upper(de.cuenta_referencia_iban) AND de.pooled_account_iban = upper(p_iban_cuenta_fintech) AND cr.divisa_abreviatura = upper(p_divisa_abrev);
+            ELSE
+                SELECT cuenta_referencia_iban INTO p_iban_referencia FROM SEGREGADA WHERE IBAN = upper(p_iban_cuenta_fintech);
+            END IF;
+            
+            SELECT SALDO INTO p_saldo FROM CUENTA_REFERENCIA WHERE IBAN = upper(p_iban_referencia);
+
+            UPDATE CUENTA_REFERENCIA SET SALDO = p_saldo + p_cantidad_movimiento WHERE IBAN = upper(p_iban_referencia);
+            
+            p_cont := p_cont-1;
+            
+        EXIT WHEN p_cont = 0;
+        END LOOP;
+        
+    -- Actualizar estado
+    UPDATE MOVIMIENTO SET ESTADO = 'COBRADO'
+    WHERE EXISTS (SELECT *
+        FROM TARJETA t JOIN MOVIMIENTO m ON m.tarjeta_numtarjeta = t.numtarjeta
+        JOIN CUENTA c ON t.cuenta_iban = upper(c.iban)
+        WHERE t.numtarjeta IN (
+            SELECT t.numtarjeta
+            FROM TARJETA t JOIN MOVIMIENTO m ON m.tarjeta_numtarjeta = t.numtarjeta
+            WHERE upper(m.ESTADO) = 'PENDIENTE' AND upper(m.MODOOPERACION) = 'DEBITO'));
+    COMMIT;
+END P_COBRO;
+
+-- Apartado D
+BEGIN
+    DBMS_SCHEDULER.CREATE_JOB(
+    JOB_NAME => 'J_LIQUIDAR',
+    JOB_TYPE => 'PLSQL_BLOCK',
+    JOB_ACTION => 'BEGIN P_COBRO(); END;',
+    start_date =>  SYSDATE,
+    repeat_interval => 'FREQ=MONTHLY; BYMONTHDAY=1; byhour=0; byminute=0; bysecond=0',
+    enabled => true);
+END;
+/
+
+-- Prueba:
+SELECT NEXT_RUN_DATE
+FROM ALL_SCHEDULER_JOBS
+WHERE JOB_NAME = 'J_LIQUIDAR';
+
+
+
+
+
+-- PARTE OPCIONAL
+-- Con el fin de agilizar la prï¿½ctica se le han otorgado a fintech los permisos de DBA
+
+create role r_administrativo;
+create role r_individual;
+create role r_autorizado;
+create role r_empresa;
+--drop role r_administrativo;
+--drop role r_individual;
+--drop role r_autorizado;
+--drop role r_empresa;
+
+create user administrativo identified by administrativo;
+create user individual identified by individual;
+create user autorizado identified by autorizado;
+create user empresa identified by empresa;
+
+grant r_administrativo to administrativo;
+grant r_individual to individual;
+grant r_autorizado to autorizado;
+grant r_empresa to empresa;
+
+--drop view v_movimiento_8764;
+CREATE VIEW v_movimiento_8764 AS
+SELECT * FROM movimiento WHERE TARJETA_NUMTARJETA IN (SELECT TARJETA_NUMTARJETA FROM 
+movimiento m JOIN tarjeta t ON m.TARJETA_NUMTARJETA = t.numtarjeta JOIN
+cliente c ON t.cliente_id_cliente = c.id_cliente WHERE c.identificacion = '8764');
+
+CREATE VIEW v_transaccion_8764 AS
+SELECT * FROM transaccion WHERE cuenta_iban IN (SELECT iban FROM cliente c
+JOIN cuenta_fintech f ON f.CLIENTE_ID_CLIENTE = c.id_cliente WHERE c.identificacion = '8764');
+
+CREATE VIEW v_movimiento_1234 AS
+SELECT * FROM movimiento WHERE TARJETA_NUMTARJETA IN (SELECT TARJETA_NUMTARJETA FROM 
+movimiento m JOIN tarjeta t ON m.TARJETA_NUMTARJETA = t.numtarjeta JOIN
+cliente c ON t.cliente_id_cliente = c.id_cliente WHERE c.identificacion = '1234');
+
+CREATE VIEW v_transaccion_1234 AS
+SELECT * FROM transaccion WHERE cuenta_iban IN (SELECT iban FROM cliente c
+JOIN cuenta_fintech f ON f.CLIENTE_ID_CLIENTE = c.id_cliente WHERE c.identificacion = '1234');
+
+grant connect to r_individual;
+grant select on v_transaccion_8764 to individual;
+grant select on v_movimiento_8764 to individual;
+grant insert on transaccion to r_individual;
+grant insert on movimiento to r_individual;
+grant update(saldo) on cuenta_referencia to r_individual;
+grant update(saldo) on depositada_en to r_individual;
+
+grant connect to r_empresa;
+grant select on v_transaccion_1234 to empresa;
+grant select on v_movimiento_1234 to empresa;
+grant insert on transaccion to r_empresa;
+grant insert on movimiento to r_empresa;
+grant update(saldo) on cuenta_referencia to r_empresa;
+grant update(saldo) on depositada_en to r_empresa;
+
+CREATE VIEW v_fintech_1234 AS
+SELECT * FROM cuenta_fintech where cliente_id_cliente IN (SELECT id_cliente FROM
+cuenta_fintech f JOIN cliente c ON c.id_cliente = f.cliente_id_cliente WHERE c.identificacion = '1234');
+
+CREATE VIEW v_pooled_1234 AS
+SELECT * FROM pooled_account where iban IN (SELECT p.iban FROM pooled_account p JOIN cuenta_fintech f ON
+p.iban = f.iban JOIN cliente c ON c.id_cliente = f.cliente_id_cliente WHERE c.identificacion = '1234');
+
+CREATE VIEW v_segregada_1234 AS
+SELECT * FROM segregada where iban IN (SELECT s.iban FROM segregada s JOIN cuenta_fintech f ON
+s.iban = f.iban JOIN cliente c ON c.id_cliente = f.cliente_id_cliente WHERE c.identificacion = '1234');
+
+grant connect to r_autorizado;
+grant select, insert on v_transaccion_1234 to autorizado;
+grant update(saldo) on cuenta_referencia to r_autorizado;
+grant update(saldo) on depositada_en to r_autorizado;
+grant select on v_fintech_1234 to autorizado;
+grant select on v_pooled_1234 to autorizado;
+grant select on v_segregada_1234 to autorizado;
+
+grant connect to r_administrativo;
+grant select any table, insert any table, delete any table to r_administrativo;
+grant update(numTarjeta, cvc, propietario, fechaCaducidad, modoDefecto, cuenta_iban, periodLiquid, mensualidad) on tarjeta to r_administrativo;
+grant update on cuenta to r_administrativo;
+grant update(iban, cuenta_fintech_estado, cuenta_fintech_fecha_cierre, cuenta_fintech_clasificacion) on cuenta_fintech to r_administrativo;
+grant update on segregada to r_administrativo;
+grant update on pooled_account to r_administrativo;
+grant update on depositada_en to r_administrativo;
+grant update(cambioEuro) on divisa to r_administrativo;
+grant update(cantidad, tipo, comision, internacional) on transaccion to r_administrativo;
+grant update(identificacion, tipo_cliente, estado, fechaBaja, direccion, ciudad, codigoPostal, pais) on cliente to r_administrativo;
+grant update(razon_social) on empresa to r_administrativo;
+grant update(nombre, apellido, fecha_nacimiento) on individual to r_administrativo;
+grant update(tipo) on autorizacion to r_administrativo;
+grant update(divisa_abreviatura, nombreBanco, sucursal, pais, saldo, estado) on cuenta_referencia to r_administrativo;
+grant update(concepto, nombreEmisor, tipoEmisor, cantidad, modoOperacion, limiteFisico, limiteOnline,
+limiteCajero, tarjeta_numtarjeta, divisa_abreviatura, estado) on movimiento to r_administrativo;
+grant update(identificacion, nombre, apellidos, direccion, fecha_nacimiento, estado, fechaFin) on prs_autorizada to r_administrativo;
+
